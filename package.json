@@ -1,6 +1,6 @@
 {
-  "name": "Ocyanic",
-  "version": "0.1.0",
+  "name": "ocyamic-frontend",
+  "version": "0.1.0"
   "private": true,
   "dependencies": {
     "axios": "^1.6.0"
