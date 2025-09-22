@@ -7,10 +7,8 @@ import type { Message, Contact } from "./types";
 import axios from "axios";
 import { io } from "socket.io-client";
 
-// Replace localhost with your deployed backend URL
-const socket = io("https://your-backend.onrender.com");
-axios.get(`https://your-backend.onrender.com/messages/${currentUser}/${contactId}`);
-
+// Connect to backend Socket.IO
+const socket = io("https://g-connect-back.onrender.com");
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
@@ -43,7 +41,7 @@ export default function App() {
 
     // Fetch chat history from backend
     if (currentUser) {
-      axios.get(`http://localhost:5000/messages/${currentUser}/${contactId}`)
+      axios.get(`https://g-connect-back.onrender.com/messages/${currentUser}/${contactId}`)
         .then(res => {
           setMessages(prev => ({
             ...prev,
@@ -52,8 +50,6 @@ export default function App() {
               text: msg.text,
               timestamp: new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
               isSent: msg.sender === currentUser,
-              isDelivered: msg.sender === currentUser,
-              isRead: msg.sender === currentUser,
             }))
           }));
         });
@@ -69,14 +65,14 @@ export default function App() {
 
   // Start new chat
   const handleStartNewChat = useCallback((username: string) => {
-    const existingContact = contacts.find(c => c.name.toLowerCase() === username.toLowerCase());
+    const existingContact = contacts.find(c => c.id === username);
     if (existingContact) {
       handleContactSelect(existingContact.id);
       return;
     }
 
     const newContact: Contact = {
-      id: Date.now().toString(),
+      id: username,
       name: username,
       avatar: '',
       lastMessage: 'Started a conversation',
@@ -84,8 +80,8 @@ export default function App() {
       isOnline: true,
     };
     setContacts(prev => [...prev, newContact]);
-    setMessages(prev => ({ ...prev, [newContact.id]: [] }));
-    handleContactSelect(newContact.id);
+    setMessages(prev => ({ ...prev, [username]: [] }));
+    handleContactSelect(username);
   }, [contacts, handleContactSelect]);
 
   const handleBackToSidebar = useCallback(() => setMobileView('sidebar'), []);
@@ -99,7 +95,6 @@ export default function App() {
       text: messageText,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       isSent: true,
-      isDelivered: true,
     };
 
     // Send to backend
@@ -124,11 +119,15 @@ export default function App() {
   // Receive messages from backend
   useEffect(() => {
     socket.on("receiveMessage", (msg: any) => {
+      // Only add messages relevant to this chat
+      if (!currentUser) return;
+      const contactId = msg.sender === currentUser ? msg.receiver : msg.sender;
+
       // Add sender as contact if new
-      if (!contacts.find(c => c.id === msg.sender)) {
+      if (!contacts.find(c => c.id === contactId)) {
         const newContact: Contact = {
-          id: msg.sender,
-          name: msg.sender,
+          id: contactId,
+          name: contactId,
           avatar: '',
           lastMessage: msg.text,
           timestamp: 'now',
@@ -140,17 +139,17 @@ export default function App() {
       // Update messages
       setMessages(prev => ({
         ...prev,
-        [msg.sender]: [...(prev[msg.sender] || []), {
+        [contactId]: [...(prev[contactId] || []), {
           id: Date.now().toString(),
           text: msg.text,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isSent: false,
+          isSent: msg.sender === currentUser,
         }]
       }));
     });
 
     return () => socket.off("receiveMessage");
-  }, [contacts]);
+  }, [contacts, currentUser]);
 
   if (!currentUser) return <LoginScreen onLogin={handleLogin} />;
 
