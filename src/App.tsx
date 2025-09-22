@@ -7,8 +7,10 @@ import type { Message, Contact } from "./types";
 import axios from "axios";
 import { io } from "socket.io-client";
 
-// Connect to backend Socket.IO
-const socket = io("http://localhost:5000");
+// Replace localhost with your deployed backend URL
+const socket = io("https://your-backend.onrender.com");
+axios.get(`https://your-backend.onrender.com/messages/${currentUser}/${contactId}`);
+
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
